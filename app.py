@@ -13,22 +13,27 @@ app = Flask(__name__)
 
 # Get DB_URI from environ variable (useful for production/testing) or,
 # if not set there, use development local db.
-app.config['SQLALCHEMY_DATABASE_URI'] = (
-    os.environ.get('DATABASE_URL', 'postgres:///warbler'))
+app.config['SQLALCHEMY_DATABASE_URI'] = (os.environ.get(
+    'DATABASE_URL', 'postgres:///warbler'))
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
 
 connect_db(app)
 
-
 ##############################################################################
 # User signup/login/logout
 
+# before_request(f)
+# Registers a function to run before each request.
 
+# For example, this can be used to open a database connection, or to load the logged in user from the session.
+
+
+# The function will be called without any arguments. If it returns a non-None value, the value is handled as if it was the return value from the view, and further request handling is stopped
 @app.before_request
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
@@ -96,8 +101,7 @@ def login():
     form = LoginForm()
 
     if form.validate_on_submit():
-        user = User.authenticate(form.username.data,
-                                 form.password.data)
+        user = User.authenticate(form.username.data, form.password.data)
 
         if user:
             do_login(user)
@@ -113,11 +117,15 @@ def login():
 def logout():
     """Handle logout of user."""
 
-    # IMPLEMENT THIS
+    do_logout()
+
+    flash("You have successfully logged out.", 'success')
+    return redirect("/login")
 
 
 ##############################################################################
 # General user routes:
+
 
 @app.route('/users')
 def list_users():
@@ -144,12 +152,8 @@ def users_show(user_id):
 
     # snagging messages in order from the database;
     # user.messages won't be in order by default
-    messages = (Message
-                .query
-                .filter(Message.user_id == user_id)
-                .order_by(Message.timestamp.desc())
-                .limit(100)
-                .all())
+    messages = (Message.query.filter(Message.user_id == user_id).order_by(
+        Message.timestamp.desc()).limit(100).all())
     return render_template('users/show.html', user=user, messages=messages)
 
 
@@ -233,6 +237,7 @@ def delete_user():
 ##############################################################################
 # Messages routes:
 
+
 @app.route('/messages/new', methods=["GET", "POST"])
 def messages_add():
     """Add a message:
@@ -292,11 +297,8 @@ def homepage():
     """
 
     if g.user:
-        messages = (Message
-                    .query
-                    .order_by(Message.timestamp.desc())
-                    .limit(100)
-                    .all())
+        messages = (Message.query.order_by(
+            Message.timestamp.desc()).limit(100).all())
 
         return render_template('home.html', messages=messages)
 
@@ -310,6 +312,7 @@ def homepage():
 #   handled elsewhere)
 #
 # https://stackoverflow.com/questions/34066804/disabling-caching-in-flask
+
 
 @app.after_request
 def add_header(req):
